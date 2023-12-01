@@ -5,101 +5,62 @@ import java.util.Scanner;
 public class Main {
     public static void main(String[] args) {
 
-        System.out.println("Hello world!");
-
         SistemaArquivo fileSystem = new SistemaArquivo();
         Scanner scanner = new Scanner(System.in);
-
         System.out.println("Bem-vindo ao FileSystem Simulator!");
 
-        Usuario usuarioRoot = fileSystem.addUser("root", "root");
-        fileSystem.mkdir("/");
+        //fileSystem.addUser("root", "root");
+        //fileSystem.authenticateUser("root", "root");
 
         while (true) {
             System.out.print(fileSystem.currentUser != null
-                    ? fileSystem.currentUser.username + "@" + fileSystem.currentDirectory + "$ "
+                    ? fileSystem.currentUser.username + "@" + fileSystem.currentDirectory + "$ ou > "
                     : "guest@0$ ");
 
             String command = scanner.nextLine();
 
             String[] parts = command.split(" ");
+            //String[] parts = command.split("\\s+");
+
+//            //condicao para string vazia
+//            if (parts.length == 0) {
+//                return;
+//            }
+
             String cmd = parts[0];
 
+
             switch (cmd) {
-                case "adduser":
-                    if (parts.length == 3) {
-                        Usuario newUser = fileSystem.addUser(parts[1], parts[2]);
-                        System.out.println("User " + newUser.username + " added.");
-                    } else {
-                        System.out.println("Usage: adduser <username> <password>");
-                    }
+                case "addUser":
+                    fileSystem.addUser(parts);
                     break;
 
                 case "rmuser":
-                    if (parts.length == 2) {
-                        fileSystem.removeUser(parts[1]);
-                        System.out.println("User " + parts[1] + " removed.");
-                    } else {
-                        System.out.println("Usage: rmuser <username>");
-                    }
+                    fileSystem.removeUser(parts);
                     break;
 
                 case "login":
-                    if (parts.length == 3) {
-                        boolean authenticated = fileSystem.authenticateUser(parts[1], parts[2]);
-                        if (authenticated) {
-                            System.out.println("Login successful.");
-                        } else {
-                            System.out.println("Invalid username or password.");
-                        }
-                    } else {
-                        System.out.println("Usage: login <username> <password>");
-                    }
+                    fileSystem.authenticateUser(parts);
                     break;
 
                 case "format":
                     fileSystem.format();
-                    System.out.println("File system formatted.");
-                    break;
-
-                // Adicione outros casos para os comandos como mkdir, touch, ls, cat, rm, cd, etc.
-
-                case "exit":
-                    System.out.println("Exiting FileSystem Simulator. Goodbye!");
-                    scanner.close();
-                    System.exit(0);
                     break;
 
                 case "mkdir":
-                    if (parts.length == 2) {
-                        fileSystem.mkdir(parts[1]);
-                        System.out.println("Directory " + parts[1] + " created.");
-                    } else {
-                        System.out.println("Usage: mkdir <directory_name>");
-                    }
+                    fileSystem.mkdir(parts);
                     break;
 
                 case "touch":
-                    if (parts.length == 2) {
-                        fileSystem.touch(parts[1]);
-                        System.out.println("File " + parts[1] + " created.");
-                    } else {
-                        System.out.println("Usage: touch <file_name>");
-                    }
+                    fileSystem.touch(parts);
                     break;
 
                 case "ls":
-                    String content = fileSystem.ls();
-                    System.out.println(content);
+                    fileSystem.ls();
                     break;
 
                 case "cat":
-                    if (parts.length == 2) {
-                        String result = fileSystem.cat(parts[1]);
-                        System.out.println(result);
-                    } else {
-                        System.out.println("Usage: cat <file_name>");
-                    }
+                    fileSystem.cat(parts);
                     break;
 
                 case "rm":
@@ -112,12 +73,7 @@ public class Main {
                     break;
 
                 case "cd":
-                    if (parts.length == 2) {
-                        String result = fileSystem.cd(parts[1]);
-                        System.out.println(result);
-                    } else {
-                        System.out.println("Usage: cd <directory_name>");
-                    }
+                    fileSystem.cd(parts);
                     break;
 
                 case "rmdir":
@@ -142,6 +98,12 @@ public class Main {
                     } else {
                         System.out.println("Usage: chown <file_name> <new_owner>");
                     }
+                    break;
+
+                case "exit":
+                    System.out.println("Exiting FileSystem Simulator. Goodbye!");
+                    scanner.close();
+                    System.exit(0);
                     break;
 
                 default:

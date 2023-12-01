@@ -2,59 +2,213 @@ package velho;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class SistemaArquivo {
 
-    List<Inode> inodes;
+    private Inode root; //pasta "/"
     List<Usuario> users;
     Usuario currentUser;
-    int currentDirectory;
+    Inode currentDirectory;
+
+    //tamanho maximo 65536 bytes  é definido na formatação
+
+    //espaço livre
+
+    //maximo de 128 blocos de 512
+
+    //grava arquivo é aumentar o tamanho dos datas....
+
 
     public SistemaArquivo() {
-        this.inodes = new ArrayList<>();
+        this.root = new Inode("root", true, null); //barra fica sem nome pq o inode não guarda o seu nome, guarda só o nome dos seus filhos
         this.users = new ArrayList<>();
-        this.currentDirectory = 0; // Assume que o diretório raiz tem o inode 0
+        this.currentDirectory = this.root;
+        this.currentUser = null;
     }
 
-    public Usuario addUser(String username, String password) {
-        Usuario newUser = new Usuario(username, password);
+    public void addUser(String nome, String password, boolean isSuperUsuario){
+        Usuario newUser = new Usuario(nome, password, isSuperUsuario);
         this.users.add(newUser);
-        return newUser;
+        System.out.println("User " + newUser.username + " added.");
     }
 
-    public void removeUser(String username) {
-        this.users.removeIf(user -> user.username.equals(username));
-    }
-
-    public boolean authenticateUser(String username, String password) {
-        for (Usuario user : users) {
-            if (user.username.equals(username) && user.password.equals(password)) {
-                this.currentUser = user;
-                return true;
-            }
+    public void addUser(String[] parts) {
+        if (parts.length == 4) {
+            addUser(parts[1], parts[2], "true".equals(parts[3]));
+        } else {
+            System.out.println("Usage: adduser <username> <password>");
         }
-        return false;
+    }
+
+    public void removeUser(String[] parts) {
+        if (parts.length == 2) {
+            if ("root".equals(parts[1])){
+                //diz que não pode excluir o root
+                return;
+            } else if (currentUser.username.equals(parts[1])) {
+                //diz que excluir ele mesmo
+                return;
+            }
+
+            this.users.removeIf(user -> user.username.equals(parts[1]));
+            System.out.println("User " + parts[1] + " removed.");
+        } else {
+            System.out.println("Usage: rmuser <username>");
+        }
+    }
+
+    public void authenticateUser(String[] parts) {
+        if (parts.length == 3) {
+            boolean authenticated = false;
+            for (Usuario user : users) {
+                if (user.username.equals(parts[1]) && user.password.equals(parts[2])) {
+                    this.currentUser = user;
+                    authenticated = true;
+                }
+            }
+
+            if (authenticated) {
+                System.out.println("Login successful.");
+            } else {
+                System.out.println("Invalid username or password.");
+            }
+
+        } else {
+            System.out.println("Usage: login <username> <password>");
+        }
     }
 
     public void format() {
-        this.inodes = new ArrayList<>();
-        this.users = new ArrayList<>();
-        this.currentDirectory = 0;
+        this.root = new Inode("root", true, null);
+        this.currentDirectory = this.root;
+        System.out.println("File system formatted.");
     }
 
-    public void touch(String filename) {
-        Inode inode = new Inode(currentUser.username, false);
-        this.inodes.add(inode);
-        updateDirectoryEntry(filename, this.inodes.size() - 1);
-    }
-
-    public String cat(String filename) {
-        Integer inodeNumber = getInodeNumber(filename);
-        if (inodeNumber != null && !this.inodes.get(inodeNumber).isDirectory) {
-            return "Content of " + filename + ":\n" + readData(inodeNumber);
+    public void ls() {
+        //sistema de mostrar data
+        for (Map.Entry<String, Inode> pair : currentDirectory.children.entrySet()) {
+            System.out.printf("%s, ultimo acesso em: %s, criacao em: %s, ultimo update: %s", pair.getKey(),
+                    pair.getValue().lastAccessTime, pair.getValue().creationTime, pair.getValue().lastUpdateTime);
         }
-        return filename + " is not a valid file.";
     }
+
+    public void cd(String[] parts) {
+
+        if (parts.length != 2) {
+            System.out.println("Uso: cd <diretório>");
+            return;
+        }
+
+        String targetDir = parts[1];
+
+        Inode pastaDestino;
+
+        if ("..".equals(targetDir)) {
+            pastaDestino = currentDirectory.inodePai;
+        } else {
+            pastaDestino = currentDirectory.children.get(targetDir);
+        }
+
+        if (pastaDestino != null && pastaDestino.isDirectory) {
+            currentDirectory = pastaDestino;
+            currentDirectory.lastAccessTime = System.currentTimeMillis();
+            System.out.println("Changed directory to " + targetDir + ".");
+            // como o nome do arquivo/pasta está sempre dentro da estrutura do pai
+            // não consigo recuperar corretamente
+        } else {
+            System.out.println("Diretório não encontrado: " + targetDir);
+        }
+    }
+
+    public void touch(String[] parts) {
+        //atraves de parametros (-a muda hora de acesso / -m muda hora de atualização/ -am muda os dois )
+        // pode ser usado para alterar hora de update
+        if (parts.length != 2) {
+            System.out.println("Uso: touch <nome_arquivo>");
+            return;
+        }
+
+        //voltar pra ver questão de extensaõ....
+
+        String fileName = parts[1];
+        Inode newFile = new Inode(currentUser.username, false, currentDirectory);
+        currentDirectory.children.put(fileName, newFile);
+        currentDirectory.lastUpdateTime = System.currentTimeMillis();
+        System.out.println("File " + parts[1] + " created.");
+    }
+
+    public void mkdir(String[] parts) {
+
+        if (parts.length != 2) {
+            System.out.println("Uso: mkdir <nome_diretório>");
+            return;
+        }
+
+        String dirName = parts[1];
+        Inode newDir = new Inode(currentUser.username, true, currentDirectory);
+        currentDirectory.children.put(dirName, newDir);
+        currentDirectory.lastUpdateTime = System.currentTimeMillis();
+        System.out.println("Directory " + dirName + " created.");
+    }
+
+    public void cat(String[] parts) {
+
+        if (parts.length != 2) {
+            System.out.println("Uso: cat <nome_arquivo>");
+            return;
+        }
+
+        String fileName = parts[1];
+        Inode file = currentDirectory.children.get(fileName);
+
+        if (file != null && !file.isDirectory) {
+            System.out.println("Content of " + fileName + ":\n" + file.content);
+            return;
+        }
+
+        if (file == null) {
+            //procura no indireto
+            return; //return se econtrar
+        }
+
+        System.out.println("Arquivo não encontrado: " + fileName);
+    }
+
+    public void gravarConteudo(String[] parts) {
+
+        //String nomeArquivo, Integer nbytes, String buffer
+        if (parts.length != 4) {
+            System.out.println("Uso: gravarConteudo <nome_arquivo> <quantidade_bytes> <conteudo>");
+            return;
+        }
+
+        String fileName = parts[1];
+        Inode file = currentDirectory.children.get(fileName);
+
+        if (file != null && !file.isDirectory) {
+            System.out.println("Content of " + fileName + ":\n" + file.content);
+            return;
+        }
+
+        if (file == null) {
+            //procura no indireto
+            return; //return se econtrar
+        }
+
+        System.out.println("Arquivo não encontrado: " + fileName);
+
+
+
+    }
+
+        //bufer é o conteudo
+
+
+
+
+
+
 
     public String rm(String filename) {
         Integer inodeNumber = getInodeNumber(filename);
@@ -85,12 +239,7 @@ public class SistemaArquivo {
         }
     }
 
-    public void mkdir(String dirname) {
-        Inode inode = new Inode(currentUser.username, true);
-        this.inodes.add(inode);
-        updateDirectoryEntry(dirname, this.inodes.size() - 1);
-        System.out.println("Directory " + dirname + " created.");
-    }
+
 
     public void rmdir(String dirname) {
         Integer inodeNumber = getInodeNumber(dirname);
@@ -108,23 +257,9 @@ public class SistemaArquivo {
         }
     }
 
-    public String cd(String dirname) {
-        Integer inodeNumber = getInodeNumber(dirname);
-        if (inodeNumber != null && this.inodes.get(inodeNumber).isDirectory) {
-            this.currentDirectory = inodeNumber;
-            return "Changed directory to " + dirname + ".";
-        }
-        return dirname + " is not a valid directory.";
-    }
 
-    public String ls() {
-        List<Integer> entries = readDirectory(this.currentDirectory);
-        List<String> names = new ArrayList<>();
-        for (Integer entry : entries) {
-            names.add(entry.toString()); // Pode ser melhorado para mostrar nomes reais dos arquivos/diretórios
-        }
-        return "Contents of current directory: " + String.join(", ", names);
-    }
+
+
 
     // Adicione métodos para chmod, mkdir, rmdir, cd, ls e outros conforme necessário
 
