@@ -18,7 +18,8 @@ public class Main {
         sistemaArquivo.loginUser(loginUsuarioRoot);
 
         while (true) {
-            System.out.print(sistemaArquivo.usuariosAtual != null ? sistemaArquivo.usuariosAtual.getUsername() + " > " : "visitante > ");
+            System.out.print(sistemaArquivo.usuariosAtual != null ? sistemaArquivo.usuariosAtual.getUsername() +
+                    " > " : "visitante > ");
 
             String comando = scanner.nextLine();
             String[] partes = comando.split(" ");
